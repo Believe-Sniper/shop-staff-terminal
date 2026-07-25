@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shop Staff Terminal</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root { --accent: #c27ba0; --accent-dark: #9c5f80; --ink: #2b2230; --bg: #faf6f8; --card: #fff; --border: #e6d9df; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-size: 14px; margin: 0; background: var(--bg); color: var(--ink); }
+  .app-header { background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: white; padding: 22px 20px; text-align: center; }
+  .app-header h2 { margin: 0; font-size: 19px; font-weight: 600; }
+  .app-header p { margin: 4px 0 0; font-size: 12px; opacity: 0.9; }
+  .container { padding: 18px; max-width: 480px; margin: 0 auto; }
+  .login-card { background: var(--card); border-radius: 14px; padding: 24px 20px; box-shadow: 0 4px 18px rgba(194,123,160,0.15); margin-top: 40px; }
+  .login-card h3 { margin-top: 0; text-align: center; color: var(--accent-dark); }
+  .tabs { display: flex; background: var(--card); border-radius: 12px; overflow: hidden; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; color: #8a7d85; font-weight: 500; }
+  .tab.active { background: var(--accent); color: white; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card { background: var(--card); border-radius: 14px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+  label { display: block; margin-top: 12px; font-weight: 600; font-size: 12.5px; color: #6b5b64; }
+  input, select { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; font-size: 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  .item-row { border: 1px solid var(--border); padding: 10px; margin-top: 12px; border-radius: 10px; position: relative; background: #fffafc; }
+  .remove-btn { position: absolute; top: 8px; right: 10px; color: #a1483a; cursor: pointer; font-size: 12px; font-weight: 600; }
+  button.main { margin-top: 16px; width: 100%; padding: 13px; background: var(--accent); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 600; box-shadow: 0 3px 10px rgba(194,123,160,0.35); }
+  button.main:disabled { background: #c7bcc2; box-shadow: none; }
+  button.add { margin-top: 10px; width: 100%; padding: 9px; background: #fff; color: var(--accent-dark); border: 1.5px dashed var(--accent); border-radius: 8px; font-weight: 500; }
+  #saleResult, #receiptResult { margin-top: 14px; padding: 12px; background: #f6e9f0; border-radius: 10px; display: none; word-break: break-word; border: 1px solid var(--border); }
+  #saleResult a, #receiptResult a { color: var(--accent-dark); font-weight: 600; }
+  .staff-badge { text-align: center; font-size: 12px; color: #8a7d85; margin-bottom: 10px; }
+  .staff-badge span { color: var(--accent-dark); font-weight: 600; }
+  .logout-link { color: var(--accent-dark); text-decoration: underline; cursor: pointer; }
+  .error-text { color: #a1483a; font-size: 12.5px; margin-top: 8px; display: none; }
+  #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h2>Shop Staff Terminal</h2>
+  <p>Log sales and print receipts on the go</p>
+</div>
+
+<div class="container">
+
+  <div id="loginScreen" class="login-card">
+    <h3>Staff Login</h3>
+    <label>Username</label>
+    <input type="text" id="loginUsername">
+    <label>PIN</label>
+    <input type="password" id="loginPin">
+    <button class="main" id="loginBtn" onclick="attemptLogin()">Log In</button>
+    <div class="error-text" id="loginError">Incorrect username or PIN. Try again.</div>
+  </div>
+
+  <div id="mainApp" style="display:none;">
+    <div class="staff-badge">Logged in as <span id="staffNameDisplay"></span> — <span class="logout-link" onclick="logout()">Log out</span></div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('sale')">New Sale</div>
+      <div class="tab" onclick="switchTab('receipt')">Receipt</div>
+    </div>
+
+    <div class="panel active card" id="panel-sale">
+      <label>Customer Name</label>
+      <input type="text" id="s-customerName">
+      <label>Phone Number</label>
+      <input type="text" id="s-phone">
+      <label>Payment Method</label>
+      <select id="s-paymentMethod"><option>Cash</option><option>Mobile Money</option><option>Bank Transfer</option><option>Card</option></select>
+      <label>Status</label>
+      <select id="s-status"><option>Paid</option><option>Pending</option><option>Partial</option></select>
+
+      <button class="add" onclick="openScanner()">📷 Scan Barcode</button>
+      <div id="scannerBox" style="display:none;">
+        <div id="reader"></div>
+        <button class="add" onclick="closeScanner()">Close Scanner</button>
+      </div>
+
+      <div id="s-items"></div>
+      <button class="add" onclick="addItemRow()">+ Add another item</button>
+      <button class="main" id="s-submitBtn" onclick="submitSaleForm()">Complete Sale</button>
+      <div id="saleResult"></div>
+    </div>
+
+    <div class="panel card" id="panel-receipt">
+      <label>Sale No</label>
+      <select id="r-saleNo"></select>
+      <button class="main" id="r-submitBtn" onclick="submitReceipt()">Generate Receipt</button>
+      <div id="receiptResult"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // PASTE YOUR APPS SCRIPT WEB APP URL HERE (ends in /exec)
+  const WEB_APP_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
+
+  let products = [];
+  let loggedInStaffName = '';
+  let scannerInstance = null;
+
+  function attemptLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const pin = document.getElementById('loginPin').value.trim();
+    if (!username || !pin) return;
+
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true;
+    btn.innerText = 'Checking...';
+
+    fetch(WEB_APP_URL + '?action=login&username=' + encodeURIComponent(username) + '&pin=' + encodeURIComponent(pin))
+      .then(res => res.json())
+      .then(res => {
+        btn.disabled = false;
+        btn.innerText = 'Log In';
+        if (res.success) {
+          loggedInStaffName = res.staffName;
+          document.getElementById('staffNameDisplay').innerText = loggedInStaffName;
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('mainApp').style.display = 'block';
+          document.getElementById('loginError').style.display = 'none';
+          initApp();
+        } else {
+          document.getElementById('loginError').style.display = 'block';
+        }
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerText = 'Log In';
+        alert('Error: ' + err.message);
+      });
+  }
+
+  function logout() {
+    loggedInStaffName = '';
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPin').value = '';
+    document.getElementById('mainApp').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'block';
+  }
+
+  function initApp() {
+    if (products.length === 0) {
+      fetch(WEB_APP_URL + '?action=getProducts')
+        .then(res => res.json())
+        .then(list => { products = list; addItemRow(); });
+    }
+    loadSaleNumbers();
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('.tab[onclick*="' + name + '"]').classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+  }
+
+  function loadSaleNumbers() {
+    fetch(WEB_APP_URL + '?action=getSaleNumbers')
+      .then(res => res.json())
+      .then(list => {
+        document.getElementById('r-saleNo').innerHTML = list.map(s => `<option value="${s}">${s}</option>`).join('');
+      });
+  }
+
+  function addItemRow() {
+    const container = document.getElementById('s-items');
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    let options = products.map(p => `<option value="${p.name}">${p.name} (GHS ${p.price})</option>`).join('');
+    div.innerHTML = `
+      <span class="remove-btn" onclick="this.parentElement.remove()">Remove</span>
+      <label>Product</label>
+      <select class="product-select">${options}</select>
+      <label>Quantity</label>
+      <input type="number" class="qty-input" value="1" min="1">
+    `;
+    container.appendChild(div);
+  }
+
+  function resetSaleForm() {
+    document.getElementById('s-customerName').value = '';
+    document.getElementById('s-phone').value = '';
+    document.getElementById('s-paymentMethod').selectedIndex = 0;
+    document.getElementById('s-status').selectedIndex = 0;
+    document.getElementById('s-items').innerHTML = '';
+    addItemRow();
+  }
+
+  function openScanner() {
+    document.getElementById('scannerBox').style.display = 'block';
+    scannerInstance = new Html5Qrcode("reader");
+    scannerInstance.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, function(decodedText) {
+      handleScannedSKU(decodedText);
+    });
+  }
+
+  function closeScanner() {
+    if (scannerInstance) {
+      scannerInstance.stop().then(function() {
+        document.getElementById('scannerBox').style.display = 'none';
+      });
+    }
+  }
+
+  function handleScannedSKU(sku) {
+    fetch(WEB_APP_URL + '?action=lookup&sku=' + encodeURIComponent(sku))
+      .then(res => res.json())
+      .then(res => {
+        if (!res.found) {
+          alert('No product found for barcode: ' + sku);
+          return;
+        }
+        const existingRows = document.querySelectorAll('#s-items .product-select');
+        for (const select of existingRows) {
+          if (select.value === res.name) {
+            const qtyInput = select.closest('.item-row').querySelector('.qty-input');
+            qtyInput.value = Number(qtyInput.value) + 1;
+            closeScanner();
+            return;
+          }
+        }
+        addItemRow();
+        const rows = document.querySelectorAll('#s-items .item-row');
+        rows[rows.length - 1].querySelector('.product-select').value = res.name;
+        closeScanner();
+      });
+  }
+
+  function submitSaleForm() {
+    const customerName = document.getElementById('s-customerName').value;
+    const phone = document.getElementById('s-phone').value;
+    const paymentMethod = document.getElementById('s-paymentMethod').value;
+    const status = document.getElementById('s-status').value;
+
+    if (!customerName || !phone) { alert('Enter customer name and phone.'); return; }
+
+    const rows = document.querySelectorAll('#s-items .item-row');
+    const items = [];
+    rows.forEach(r => {
+      items.push({ product: r.querySelector('.product-select').value, quantity: r.querySelector('.qty-input').value });
+    });
+    if (items.length === 0) { alert('Add at least one product.'); return; }
+
+    const btn = document.getElementById('s-submitBtn');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.innerText = 'Processing...';
+
+    const payload = { customerName, phone, paymentMethod, status, items, staffName: loggedInStaffName };
+
+    fetch(WEB_APP_URL + '?action=submitSale&payload=' + encodeURIComponent(JSON.stringify(payload)))
+      .then(res => res.json())
+      .then(res => {
+        const div = document.getElementById('saleResult');
+        div.style.display = 'block';
+        div.innerHTML = 'Sale ' + res.saleNo + ' complete — Grand Total GHS ' + res.grandTotal.toFixed(2) +
+          '<br><br><a href="' + res.waUrl + '" target="_blank">Send receipt on WhatsApp</a>';
+        btn.disabled = false;
+        btn.innerText = 'Complete Sale';
+        resetSaleForm();
+        loadSaleNumbers();
+      })
+      .catch(err => {
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.innerText = 'Complete Sale';
+      });
+  }
+
+  function submitReceipt() {
+    const saleNo = document.getElementById('r-saleNo').value;
+    if (!saleNo) { alert('Select a Sale No.'); return; }
+
+    const btn = document.getElementById('r-submitBtn');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.innerText = 'Generating...';
+
+    fetch(WEB_APP_URL + '?action=generateReceipt&saleNo=' + encodeURIComponent(saleNo))
+      .then(res => res.json())
+      .then(res => {
+        const div = document.getElementById('receiptResult');
+        div.style.display = 'block';
+        div.innerHTML = 'Receipt ready — Grand Total GHS ' + res.grandTotal.toFixed(2) +
+          '<br><br><a href="' + res.pdfUrl + '" target="_blank">Open PDF</a>' +
+          '<br><br><a href="' + res.waUrl + '" target="_blank">Send on WhatsApp</a>';
+        btn.disabled = false;
+        btn.innerText = 'Generate Receipt';
+      })
+      .catch(err => {
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.innerText = 'Generate Receipt';
+      });
+  }
+</script>
+</body>
+</html>
