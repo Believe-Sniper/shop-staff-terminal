@@ -42,7 +42,7 @@
 <body>
 
 <div class="app-header">
-  <h2>Point of Sale(POS)</h2>
+  <h2>Shop Staff Terminal</h2>
   <p>Log sales and print receipts on the go</p>
 </div>
 
@@ -103,7 +103,7 @@
 
 <script>
   // PASTE YOUR APPS SCRIPT WEB APP URL HERE (ends in /exec)
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzuA913XOUJhmHnJFv5fCw8UOfBWErgj4RQARZ6c0Rey_kcKq1n72Psy3v4bQALKB1O/exec";
+  const WEB_APP_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
 
   let products = [];
   let loggedInStaffName = '';
@@ -281,25 +281,25 @@
 
     const payload = { customerName, phone, paymentMethod, status, items, staffName: loggedInStaffName };
 
-   fetch(WEB_APP_URL + '?action=submitSale&payload=' + encodeURIComponent(JSON.stringify(payload)))
-  .then(res => res.json())
-  .then(res => {
-    btn.disabled = false;
-    btn.innerText = 'Complete Sale';
-
-    if (res.success === false) {
-      alert('Server error: ' + res.message);
-      return;
-    }
-
-    const div = document.getElementById('saleResult');
-    div.style.display = 'block';
-    div.innerHTML = 'Sale ' + res.saleNo + ' complete — Grand Total GHS ' + res.grandTotal.toFixed(2) +
-      '<br><br><a href="' + res.waUrl + '" target="_blank">Send receipt on WhatsApp</a>';
-    resetSaleForm();
-    loadSaleNumbers();
-    updateRunningTotal();
-  })
+    fetch(WEB_APP_URL + '?action=submitSale&payload=' + encodeURIComponent(JSON.stringify(payload)))
+      .then(res => res.json())
+      .then(res => {
+        const div = document.getElementById('saleResult');
+        div.style.display = 'block';
+        div.innerHTML = 'Sale ' + res.saleNo + ' complete — Grand Total GHS ' + res.grandTotal.toFixed(2) +
+          '<br><br><a href="' + res.waUrl + '" target="_blank">Send receipt on WhatsApp</a>';
+        btn.disabled = false;
+        btn.innerText = 'Complete Sale';
+        resetSaleForm();
+        loadSaleNumbers();
+        updateRunningTotal();
+      })
+      .catch(err => {
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.innerText = 'Complete Sale';
+      });
+  }
 
   function submitReceipt() {
     const saleNo = document.getElementById('r-saleNo').value;
