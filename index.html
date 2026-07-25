@@ -42,7 +42,7 @@
 <body>
 
 <div class="app-header">
-  <h2>Point of Sale(POS)</h2>
+  <h2>Shop Staff Terminal</h2>
   <p>Log sales and print receipts on the go</p>
 </div>
 
@@ -270,9 +270,13 @@
     const rows = document.querySelectorAll('#s-items .item-row');
     const items = [];
     rows.forEach(r => {
-      items.push({ product: r.querySelector('.product-select').value, quantity: r.querySelector('.qty-input').value });
+      const productName = r.querySelector('.product-select').value.trim();
+      const qty = r.querySelector('.qty-input').value;
+      if (productName) {
+        items.push({ product: productName, quantity: qty });
+      }
     });
-    if (items.length === 0) { alert('Add at least one product.'); return; }
+    if (items.length === 0) { alert('Add at least one product with a valid name.'); return; }
 
     const btn = document.getElementById('s-submitBtn');
     if (btn.disabled) return;
@@ -284,20 +288,27 @@
     fetch(WEB_APP_URL + '?action=submitSale&payload=' + encodeURIComponent(JSON.stringify(payload)))
       .then(res => res.json())
       .then(res => {
+        btn.disabled = false;
+        btn.innerText = 'Complete Sale';
+
+        if (res.success === false) {
+          alert('Server error: ' + res.message);
+          return;
+        }
+
         const div = document.getElementById('saleResult');
         div.style.display = 'block';
         div.innerHTML = 'Sale ' + res.saleNo + ' complete — Grand Total GHS ' + res.grandTotal.toFixed(2) +
           '<br><br><a href="' + res.waUrl + '" target="_blank">Send receipt on WhatsApp</a>';
-        btn.disabled = false;
-        btn.innerText = 'Complete Sale';
+
         resetSaleForm();
         loadSaleNumbers();
         updateRunningTotal();
       })
       .catch(err => {
-        alert('Error: ' + err.message);
         btn.disabled = false;
         btn.innerText = 'Complete Sale';
+        alert('Network error: ' + err.message);
       });
   }
 
@@ -313,18 +324,24 @@
     fetch(WEB_APP_URL + '?action=generateReceipt&saleNo=' + encodeURIComponent(saleNo))
       .then(res => res.json())
       .then(res => {
+        btn.disabled = false;
+        btn.innerText = 'Generate Receipt';
+
+        if (res.success === false) {
+          alert('Server error: ' + res.message);
+          return;
+        }
+
         const div = document.getElementById('receiptResult');
         div.style.display = 'block';
         div.innerHTML = 'Receipt ready — Grand Total GHS ' + res.grandTotal.toFixed(2) +
           '<br><br><a href="' + res.pdfUrl + '" target="_blank">Open PDF</a>' +
           '<br><br><a href="' + res.waUrl + '" target="_blank">Send on WhatsApp</a>';
-        btn.disabled = false;
-        btn.innerText = 'Generate Receipt';
       })
       .catch(err => {
-        alert('Error: ' + err.message);
         btn.disabled = false;
         btn.innerText = 'Generate Receipt';
+        alert('Network error: ' + err.message);
       });
   }
 </script>
