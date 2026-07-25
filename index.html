@@ -36,6 +36,7 @@
   .logout-link { color: var(--accent-dark); text-decoration: underline; cursor: pointer; }
   .error-text { color: #a1483a; font-size: 12.5px; margin-top: 8px; display: none; }
   #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+  #runningTotal { margin-top: 14px; padding: 12px; background: #f6e9f0; border-radius: 10px; font-weight: 700; text-align: center; font-size: 16px; border: 1px solid var(--border); color: var(--accent-dark); }
 </style>
 </head>
 <body>
@@ -83,6 +84,9 @@
 
       <div id="s-items"></div>
       <button class="add" onclick="addItemRow()">+ Add another item</button>
+
+      <div id="runningTotal">Total: GHS 0.00</div>
+
       <button class="main" id="s-submitBtn" onclick="submitSaleForm()">Complete Sale</button>
       <div id="saleResult"></div>
     </div>
@@ -173,15 +177,34 @@
     const container = document.getElementById('s-items');
     const div = document.createElement('div');
     div.className = 'item-row';
-    let options = products.map(p => `<option value="${p.name}">${p.name} (GHS ${p.price})</option>`).join('');
+
+    const listId = 'productList-' + Date.now() + Math.random().toString(36).slice(2);
+    const options = products.map(p => `<option value="${p.name}">${p.name} (GHS ${p.price})</option>`).join('');
+
     div.innerHTML = `
-      <span class="remove-btn" onclick="this.parentElement.remove()">Remove</span>
-      <label>Product</label>
-      <select class="product-select">${options}</select>
+      <span class="remove-btn" onclick="this.parentElement.remove(); updateRunningTotal();">Remove</span>
+      <label>Product (type to search)</label>
+      <input type="text" class="product-select" list="${listId}" placeholder="Start typing...">
+      <datalist id="${listId}">${options}</datalist>
       <label>Quantity</label>
       <input type="number" class="qty-input" value="1" min="1">
     `;
     container.appendChild(div);
+
+    div.querySelector('.product-select').addEventListener('input', updateRunningTotal);
+    div.querySelector('.qty-input').addEventListener('input', updateRunningTotal);
+  }
+
+  function updateRunningTotal() {
+    const rows = document.querySelectorAll('#s-items .item-row');
+    let total = 0;
+    rows.forEach(r => {
+      const name = r.querySelector('.product-select').value;
+      const qty = Number(r.querySelector('.qty-input').value) || 0;
+      const match = products.find(p => p.name === name);
+      if (match) total += Number(match.price) * qty;
+    });
+    document.getElementById('runningTotal').innerText = 'Total: GHS ' + total.toFixed(2);
   }
 
   function resetSaleForm() {
@@ -191,6 +214,7 @@
     document.getElementById('s-status').selectedIndex = 0;
     document.getElementById('s-items').innerHTML = '';
     addItemRow();
+    updateRunningTotal();
   }
 
   function openScanner() {
@@ -218,10 +242,11 @@
           return;
         }
         const existingRows = document.querySelectorAll('#s-items .product-select');
-        for (const select of existingRows) {
-          if (select.value === res.name) {
-            const qtyInput = select.closest('.item-row').querySelector('.qty-input');
+        for (const input of existingRows) {
+          if (input.value === res.name) {
+            const qtyInput = input.closest('.item-row').querySelector('.qty-input');
             qtyInput.value = Number(qtyInput.value) + 1;
+            updateRunningTotal();
             closeScanner();
             return;
           }
@@ -229,6 +254,7 @@
         addItemRow();
         const rows = document.querySelectorAll('#s-items .item-row');
         rows[rows.length - 1].querySelector('.product-select').value = res.name;
+        updateRunningTotal();
         closeScanner();
       });
   }
@@ -266,6 +292,7 @@
         btn.innerText = 'Complete Sale';
         resetSaleForm();
         loadSaleNumbers();
+        updateRunningTotal();
       })
       .catch(err => {
         alert('Error: ' + err.message);
