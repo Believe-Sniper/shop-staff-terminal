@@ -265,7 +265,7 @@
   }
 
   function handleScannedSKU(sku) {
-    fetch(WEB_APP_URL + '?action=lookup&sku=' + encodeURIComponent(sku))
+    fetch(WEB_APP_URL + '?action=lookup&sku=' + encodeURIComponent(sku) + '&token=' + encodeURIComponent(sessionToken))
       .then(res => res.json())
       .then(res => {
         if (!res.found) {
