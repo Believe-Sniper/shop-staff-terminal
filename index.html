@@ -26,6 +26,7 @@
   input:focus, select:focus { outline: none; border-color: var(--accent); }
   .item-row { border: 1px solid var(--border); padding: 10px; margin-top: 12px; border-radius: 10px; position: relative; background: #fffafc; }
   .remove-btn { position: absolute; top: 8px; right: 10px; color: #a1483a; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .product-warning { display: none; color: #a1483a; font-size: 12px; margin-top: 4px; font-weight: 600; }
   button.main { margin-top: 16px; width: 100%; padding: 13px; background: var(--accent); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 600; box-shadow: 0 3px 10px rgba(194,123,160,0.35); }
   button.main:disabled { background: #c7bcc2; box-shadow: none; }
   button.add { margin-top: 10px; width: 100%; padding: 9px; background: #fff; color: var(--accent-dark); border: 1.5px dashed var(--accent); border-radius: 8px; font-weight: 500; }
@@ -42,7 +43,7 @@
 <body>
 
 <div class="app-header">
-  <h2>Shop Staff Terminal</h2>
+  <h2>Point of Sale(POS)</h2>
   <p>Log sales and print receipts on the go</p>
 </div>
 
@@ -169,7 +170,9 @@
     fetch(WEB_APP_URL + '?action=getSaleNumbers')
       .then(res => res.json())
       .then(list => {
-        document.getElementById('r-saleNo').innerHTML = list.map(s => `<option value="${s}">${s}</option>`).join('');
+        if (Array.isArray(list)) {
+          document.getElementById('r-saleNo').innerHTML = list.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
       });
   }
 
@@ -185,14 +188,32 @@
       <span class="remove-btn" onclick="this.parentElement.remove(); updateRunningTotal();">Remove</span>
       <label>Product (type to search)</label>
       <input type="text" class="product-select" list="${listId}" placeholder="Start typing...">
+      <div class="product-warning">⚠ This doesn't match any registered product exactly.</div>
       <datalist id="${listId}">${options}</datalist>
       <label>Quantity</label>
       <input type="number" class="qty-input" value="1" min="1">
     `;
     container.appendChild(div);
 
-    div.querySelector('.product-select').addEventListener('input', updateRunningTotal);
+    const productInput = div.querySelector('.product-select');
+    productInput.addEventListener('input', function() {
+      validateProductMatch(this);
+      updateRunningTotal();
+    });
     div.querySelector('.qty-input').addEventListener('input', updateRunningTotal);
+  }
+
+  function validateProductMatch(inputEl) {
+    const warningDiv = inputEl.parentElement.querySelector('.product-warning');
+    const typedValue = inputEl.value.trim();
+
+    if (!typedValue) {
+      warningDiv.style.display = 'none';
+      return;
+    }
+
+    const exactMatch = products.some(p => p.name === typedValue);
+    warningDiv.style.display = exactMatch ? 'none' : 'block';
   }
 
   function updateRunningTotal() {
@@ -253,7 +274,10 @@
         }
         addItemRow();
         const rows = document.querySelectorAll('#s-items .item-row');
-        rows[rows.length - 1].querySelector('.product-select').value = res.name;
+        const lastRow = rows[rows.length - 1];
+        const productInput = lastRow.querySelector('.product-select');
+        productInput.value = res.name;
+        validateProductMatch(productInput);
         updateRunningTotal();
         closeScanner();
       });
@@ -269,14 +293,23 @@
 
     const rows = document.querySelectorAll('#s-items .item-row');
     const items = [];
+    let hasInvalidProduct = false;
+
     rows.forEach(r => {
       const productName = r.querySelector('.product-select').value.trim();
       const qty = r.querySelector('.qty-input').value;
       if (productName) {
+        const exactMatch = products.some(p => p.name === productName);
+        if (!exactMatch) hasInvalidProduct = true;
         items.push({ product: productName, quantity: qty });
       }
     });
+
     if (items.length === 0) { alert('Add at least one product with a valid name.'); return; }
+    if (hasInvalidProduct) {
+      alert("One or more products don't exactly match anything registered in Inventory. Please check the highlighted warning(s) and correct the product name before completing the sale.");
+      return;
+    }
 
     const btn = document.getElementById('s-submitBtn');
     if (btn.disabled) return;
