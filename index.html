@@ -108,6 +108,7 @@
 
   let products = [];
   let loggedInStaffName = '';
+  let sessionToken = '';
   let scannerInstance = null;
 
   function attemptLogin() {
@@ -126,12 +127,17 @@
         btn.innerText = 'Log In';
         if (res.success) {
           loggedInStaffName = res.staffName;
+          sessionToken = res.token;
           document.getElementById('staffNameDisplay').innerText = loggedInStaffName;
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('mainApp').style.display = 'block';
           document.getElementById('loginError').style.display = 'none';
           initApp();
+        } else if (res.locked) {
+          document.getElementById('loginError').innerText = res.message;
+          document.getElementById('loginError').style.display = 'block';
         } else {
+          document.getElementById('loginError').innerText = 'Incorrect username or PIN. Try again.';
           document.getElementById('loginError').style.display = 'block';
         }
       })
@@ -144,6 +150,7 @@
 
   function logout() {
     loggedInStaffName = '';
+    sessionToken = '';
     document.getElementById('loginUsername').value = '';
     document.getElementById('loginPin').value = '';
     document.getElementById('mainApp').style.display = 'none';
@@ -167,11 +174,14 @@
   }
 
   function loadSaleNumbers() {
-    fetch(WEB_APP_URL + '?action=getSaleNumbers')
+    fetch(WEB_APP_URL + '?action=getSaleNumbers&token=' + encodeURIComponent(sessionToken))
       .then(res => res.json())
       .then(list => {
         if (Array.isArray(list)) {
           document.getElementById('r-saleNo').innerHTML = list.map(s => `<option value="${s}">${s}</option>`).join('');
+        } else if (list.success === false) {
+          alert('Session expired. Please log in again.');
+          logout();
         }
       });
   }
@@ -318,13 +328,18 @@
 
     const payload = { customerName, phone, paymentMethod, status, items, staffName: loggedInStaffName };
 
-    fetch(WEB_APP_URL + '?action=submitSale&payload=' + encodeURIComponent(JSON.stringify(payload)))
+    fetch(WEB_APP_URL + '?action=submitSale&token=' + encodeURIComponent(sessionToken) + '&payload=' + encodeURIComponent(JSON.stringify(payload)))
       .then(res => res.json())
       .then(res => {
         btn.disabled = false;
         btn.innerText = 'Complete Sale';
 
         if (res.success === false) {
+          if (res.message === 'Unauthorized. Please log in again.') {
+            alert('Your session has expired. Please log in again.');
+            logout();
+            return;
+          }
           alert('Server error: ' + res.message);
           return;
         }
@@ -354,13 +369,18 @@
     btn.disabled = true;
     btn.innerText = 'Generating...';
 
-    fetch(WEB_APP_URL + '?action=generateReceipt&saleNo=' + encodeURIComponent(saleNo))
+    fetch(WEB_APP_URL + '?action=generateReceipt&token=' + encodeURIComponent(sessionToken) + '&saleNo=' + encodeURIComponent(saleNo))
       .then(res => res.json())
       .then(res => {
         btn.disabled = false;
         btn.innerText = 'Generate Receipt';
 
         if (res.success === false) {
+          if (res.message === 'Unauthorized. Please log in again.') {
+            alert('Your session has expired. Please log in again.');
+            logout();
+            return;
+          }
           alert('Server error: ' + res.message);
           return;
         }
