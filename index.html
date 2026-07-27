@@ -265,33 +265,38 @@
   }
 
   function handleScannedSKU(sku) {
-    fetch(WEB_APP_URL + '?action=lookup&sku=' + encodeURIComponent(sku) + '&token=' + encodeURIComponent(sessionToken))
-      .then(res => res.json())
-      .then(res => {
-        if (!res.found) {
-          alert('No product found for barcode: ' + sku);
+  fetch(WEB_APP_URL + '?action=lookup&sku=' + encodeURIComponent(sku) + '&token=' + encodeURIComponent(sessionToken))
+    .then(res => res.json())
+    .then(res => {
+      if (!res.found) {
+        alert('No product found for barcode: ' + sku);
+        return;
+      }
+
+      const existingRows = document.querySelectorAll('#s-items .product-select');
+      for (const input of existingRows) {
+        if (input.value === res.name) {
+          const qtyInput = input.closest('.item-row').querySelector('.qty-input');
+          qtyInput.focus();
+          qtyInput.select();
+          closeScanner();
+          alert(res.name + ' is already in the cart. Adjust the quantity manually if you need more.');
           return;
         }
-        const existingRows = document.querySelectorAll('#s-items .product-select');
-        for (const input of existingRows) {
-          if (input.value === res.name) {
-            const qtyInput = input.closest('.item-row').querySelector('.qty-input');
-            qtyInput.value = Number(qtyInput.value) + 1;
-            updateRunningTotal();
-            closeScanner();
-            return;
-          }
-        }
-        addItemRow();
-        const rows = document.querySelectorAll('#s-items .item-row');
-        const lastRow = rows[rows.length - 1];
-        const productInput = lastRow.querySelector('.product-select');
-        productInput.value = res.name;
-        validateProductMatch(productInput);
-        updateRunningTotal();
-        closeScanner();
-      });
-  }
+      }
+
+      addItemRow();
+      const rows = document.querySelectorAll('#s-items .item-row');
+      const lastRow = rows[rows.length - 1];
+      const productInput = lastRow.querySelector('.product-select');
+      const qtyInput = lastRow.querySelector('.qty-input');
+      productInput.value = res.name;
+      qtyInput.value = 1;
+      validateProductMatch(productInput);
+      updateRunningTotal();
+      closeScanner();
+    });
+}
 
   function submitSaleForm() {
     const customerName = document.getElementById('s-customerName').value;
