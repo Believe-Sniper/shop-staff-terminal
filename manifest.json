@@ -1,12 +1,12 @@
 {
-  "name": "Stylish Vibe",
-  "short_name": "Stylish",
+  "name": "Shop Staff Terminal",
+  "short_name": "Staff",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#faf6f8",
   "theme_color": "#c27ba0",
   "icons": [
-    { "src": "logo symbol-icon.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "logo symbol-icon.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "logo symbol.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "logo symbol.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
